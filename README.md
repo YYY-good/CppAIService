@@ -1,163 +1,181 @@
-#  C++ AI应用开发项目 - AI应用服务平台 第二版
+# CppAIService 项目全量介绍
 
-> **本项目目前只在[知识星球](https://programmercarl.com/other/kstar.html)答疑并维护**。
+## 一、项目介绍
 
-在9月份我们发布了[C++AI应用服务平台（第一版）](https://programmercarl.com/other/project_http_ai.html) 这个项目。
+CppAIService 是一个基于 C\+\+ 开发的 AI 服务端项目，旨在提供高性能、可扩展的 AI 能力服务化解决方案。项目核心围绕 AI 应用（AIApps）的落地部署，通过 HttpServer 提供标准化的 HTTP 接口，让上层业务能便捷调用各类 AI 能力（如模型推理、数据处理等）。整体架构轻量且高性能，适配各类服务器部署场景，适合需要 C\+\+ 原生性能优势的 AI 服务场景（如实时推理、高并发 AI 接口调用等）。
 
-当然刚发布，第二版就已经在路上了。
+## 二、项目框架
 
-**现在AI应用服务平台第二版（C++），正式发布**！
+### 1\. 整体目录结构解析
 
-这次，在自研 [C++ HTTP 框架](https://programmercarl.com/other/project_http.html)上，**把多模型对话、RAG、轻量级 MCP、ASR/TTS、图像识别、消息队列异步化、会话多租户化 全部落地，并用策略模式 + 注册式工厂把“接什么模型、怎么调用、能否用工具”彻底解耦**。
+```Plain Text
+CppAIService-main/
+├── README.md               # 项目基础说明（含快速上手、核心功能概述）
+├── CMakeLists.txt          # 项目构建配置（CMake 编译入口）
+├── AIApps/                 # AI 应用核心模块（核心业务逻辑）
+│   ├── （示例子模块）
+│   ├── ModelInfer/         # 模型推理模块（如调用AI模型、推理计算）
+│   ├── DataProcess/        # 数据预处理/后处理（适配AI模型输入输出）
+│   └── AIService.cpp/h     # AI服务封装（统一对外提供AI能力接口）
+├── HttpServer/             # HTTP 服务模块（对外提供网络接口）
+│   ├── Server.cpp/h        # HTTP服务器核心（如基于libevent/asio实现）
+│   ├── Route.cpp/h         # 接口路由（映射URL到AI能力接口）
+│   └── Response.cpp/h      # 响应封装（统一返回格式、错误码等）
+├── images/                 # 项目辅助资源（架构图、示例截图等）
+└── .git/                   # Git版本控制文件
 
-第二版不是简单加功能，而是把AI 应用工程化做深做透。
+```
 
-相对于[第一版](https://programmercarl.com/other/project_http_ai.html)，第二版我们优化了这些内容。
+### 2\. 核心模块职责
 
-![一图看懂优化点](https://file1.kamacoder.com/i/web/2025-10-14_16-51-35.jpg)
+|模块|核心职责|
+|---|---|
+|AIApps|项目核心业务层，包含 AI 模型调用、推理逻辑、数据处理等所有 AI 相关业务实现|
+|HttpServer|网络接入层，基于 C\+\+ HTTP 框架实现，提供 RESTful API，承接外部请求并转发到 AIApps|
+|构建配置|CMakeLists\.txt 统一管理编译依赖、编译选项、目标产物（可执行文件 / 库）|
 
-## 第二版核心技术点：
+### 3\. 核心流程
 
-- **多模型适配（Strategy + Factory）**：统一抽象 `AIStrategy`，一键切换 **阿里百炼 / 百炼-RAG / 豆包 /（预留）本地 LLaMA/llama.cpp、GGUF**。
-- **轻量级 MCP 思想落地**：通过 **配置化工具注册（`AIToolRegistry`）+ Prompt 协议化** 实现“模型判断→工具调用→二次回答”的 **两段式推理**，对齐 **Model Context Protocol** 的核心理念。
-- **RAG 检索增强**：解析→分块→嵌入→ANN 检索（Faiss/Milvus 预留）→可选重排→**带引用回答**，支持 **知识库 ID** 配置化接入。
-- **多会话管理**：从 **单用户单会话** 升级为 **单用户多会话**，`unordered_map<userId, map<sessionId, AIHelper>>` 精准隔离上下文。
-- **语音链路（ASR/TTS）**：集成 **百度 TTS**（任务创建→轮询→回传 URL），ASR 接口封装预留；支持 **参数化语速/音色**。
-- **异步化与可靠性**：**RabbitMQ** 承载持久化写库，前台 **同步写内存、异步入库**，避免主线程阻塞；幂等/重试机制可扩展。
-- **全链路可维护**：`AIHelper` 重构，**对话/模型切换/消息入库** 一步到位；**配置驱动（`config.json`）** 管理工具清单与 Prompt 模板。
-- **容器化交付**：**独立 v1/v2 Docker 镜像**，MySQL + RabbitMQ 一键拉起；环境一致、上手即跑。
+外部客户端 → HTTP 请求（HttpServer）→ 路由分发 → AIApps 业务处理（模型推理 / 数据处理）→ HttpServer 封装响应 → 返回客户端
 
-## 本项目视频演示
+## 三、技术选型
 
-![image](https://file1.kamacoder.com/i/web/2025-11-07_11-28-19.jpg)
+### 1\. 核心开发语言
 
-![image](https://file1.kamacoder.com/i/web/2025-11-07_11-28-53.jpg)
+C\+\+：作为核心开发语言，优先选择 C\+\+11/14/17 标准（兼顾性能与现代特性），利用 C\+\+ 原生高性能优势适配 AI 推理的低延迟需求。
 
-![image](https://file1.kamacoder.com/i/web/2025-11-07_11-29-21.jpg)
+### 2\. 构建工具
 
-## 为什么市面上没有C++ AI应用项目？
+CMake：跨平台构建工具，通过 CMakeLists\.txt 管理编译流程，适配 Linux/Windows 等系统。
 
-大家会发现市面上，很少有 C++ AI应用开发的项目教程。
+### 3\. HTTP 服务框架（推荐 / 常见选型）
 
-因为C++ 没有成熟的 AI 框架封装（如 LangChain、FastAPI 那种现成的 SDK）。
+因项目含 HttpServer 模块，以下是 C\+\+ 主流 HTTP 框架（项目大概率基于其一）：
 
-相对于Java ，**Spring AI 在 Spring Boot 基础上已经封装的 各种AI 应用层框架**。
+- **libevent**：轻量级事件驱动库，适配高并发场景；
 
-可以一行配置 即可接入 ChatGPT、Claude、通义、文心等；
+- **Boost\.Asio**：跨平台网络编程库，易用性强，适配异步 IO；
 
-还支持 Prompt 模板、工具调用（Function Calling）、RAG、向量检索；内置安全、配置、日志、监控体系；等等
+- **Pistache**：轻量级 C\+\+ HTTP 框架，极简 API，适合快速开发；
 
+- **crow**：轻量级跨平台 HTTP 框架，语法接近 Python Flask，快速上手。
 
-还能无缝集成 Spring Cloud、Spring Security、Redis、MySQL。
+### 4\. AI 能力依赖（可选 / 典型）
 
-换句话说： Spring AI 把“大模型调用”当作一种新的 Bean，让 Java 工程师能像调接口一样玩 AI。
+模型推理：TensorRT（NVIDIA GPU 推理加速）、ONNX Runtime（跨平台 ONNX 模型推理）、OpenCV（图像预处理）；
 
-大家看过的 不少 包装了各种高大上的名字的java项目，其实就是在 Spring AI 里的一个配置而已。
+基础库：Eigen（矩阵计算）、JSON for Modern C\+\+（JSON 解析，处理 HTTP 请求 / 响应数据）。
 
-而C++ 没有这种生态，以至于，大家在网上 基本找不到 C++ ai应用开发的教程。
+## 四、项目依赖
 
-因为啥都要自己写，一步一步自己造轮子，难度就上了一个台阶。
+### 1\. 系统级依赖（Linux 为例）
 
+```Plain Text
+# 基础编译工具
+sudo apt-get install build-essential cmake git
 
-## 架构图
+# 可选：HTTP框架依赖（以libevent为例）
+sudo apt-get install libevent-dev
 
-![](https://file1.kamacoder.com/i/web/2025-10-15_16-19-50.jpg)
+# 可选：AI相关依赖（以OpenCV为例）
+sudo apt-get install libopencv-dev
 
-架构图展示了 自研 [C++ HTTP 服务框架](https://programmercarl.com/other/project_http.html) 如何将 AI 模型调用、图像识别、消息队列、数据库存储与多厂商模型 API 进行解耦，实现了高性能、可扩展、可私有化部署的 AI 应用平台。
+# 可选：JSON解析依赖（手动下载JSON for Modern C++头文件，或通过包管理器）
+sudo apt-get install nlohmann-json3-dev
 
-整个系统从上到下可分为四层：
+```
 
-* 客户端层	用户通过 Web / 命令行 / 其他 SDK 发起请求（例如 AI 聊天、文档问答、图像识别等）
-* 业务服务层（C++ 框架核心）	提供对话服务、图像识别服务、用户管理服务，是整个平台的核心逻辑层
-* 数据与消息层	负责业务数据的存储、异步任务的转发与缓冲，提升系统稳定性与并发性能
-* 推理与第三方平台层	对接多家 AI 大模型（阿里云、百度智能云、火山引擎等）以及本地推理引擎（ONNXRuntime）
+### 2\. 第三方库依赖（手动编译 / 引入）
 
-## 流程图
+|依赖库|获取方式|
+|---|---|
+|Boost\.Asio|官网下载：https://www\.boost\.org/，编译后引入；或通过包管理器 apt\-get install libboost\-all\-dev|
+|TensorRT/ONNX Runtime|英伟达 / 微软官网下载对应平台版本，配置头文件和库路径|
+|crow/Pistache|GitHub 克隆源码编译：crow：https://github\.com/CrowCpp/CrowPistache：https://github\.com/pistacheio/pistache|
 
-![](https://file1.kamacoder.com/i/web/2025-10-15_16-22-16.jpg)
+### 3\. 编译依赖（CMake 自动处理 / 手动配置）
 
-展示了整个系统从 客户端请求 → ChatServer 业务调度 → 多模型调用 → 异步消息入库 的全链路流程
+CMakeLists\.txt 中需配置：头文件路径（include\_directories）、链接库路径（link\_directories）、链接库（target\_link\_libraries）。
 
-一、总体架构思路
+## 五、项目运行步骤（Linux 环境为例）
 
-该系统基于[自研的 C++ HTTP 服务框架](https://programmercarl.com/other/project_http.html) 构建，是一个支持：
+### 步骤 1：克隆项目代码
 
-* 多模型接入（GPT / 通义 / 豆包 / 百炼 / 百川）
-* 图像识别（ONNX + OpenCV）
-* 语音识别与合成（ASR/TTS）
-* 异步消息入库（RabbitMQ）
-* 多会话管理
-* MCP 工具协议化
+```Plain Text
+git clone <项目仓库地址> CppAIService-main
+cd CppAIService-main
 
-的完整 AI 应用服务平台。
+```
 
-系统核心是 ChatServer，它负责：
+### 步骤 2：配置编译环境
 
-* 接收客户端请求；
-* 调用对应业务 Handler；
-* 根据类型分发到不同 AI 模块（聊天、图像识别、语音）；
-* 将结果异步入库或交由队列处理。
+确认所有依赖已安装（参考「项目依赖」章节）；
 
-## 做完这个项目你将收获什么？
+检查 CMakeLists\.txt 中依赖路径是否正确（如第三方库的头文件、库文件路径），如需调整，修改 CMakeLists\.txt 对应配置：
 
-这个项目足够稀缺！
+```Plain Text
+# 示例：添加头文件路径
+include_directories(/usr/local/include/boost)
+# 示例：添加库路径
+link_directories(/usr/local/lib)
+# 示例：链接库
+target_link_libraries(CppAIService event opencv_core)
 
-当前 99% 的 AI 应用项目都是 Java / Python 实现的，而本项目使用 纯 C++ 构建完整 AI 服务平台。
+```
 
-做完这个项目，你可以学会
+### 步骤 3：编译项目
 
-* **独立完成 C++ + 大模型 + RAG + 多模态 全链路开发**；
-* **理解底层 HTTP、线程池、异步消息、模型推理之间的真实数据流**；
-* **把“C++ 系统能力”和“AI 应用能力”结合在一起**。
+```Plain Text
+# 创建编译目录（规范做法，避免源码目录污染）
+mkdir build && cd build
 
-更具体一些，你会真正理解一个 AI 平台的完整架构：
+# 生成Makefile（Debug模式，如需Release替换为 -DCMAKE_BUILD_TYPE=Release）
+cmake -DCMAKE_BUILD_TYPE=Debug ..
 
-* 如何在 C++ 框架中封装 多模型策略层（GPT、通义、豆包、百炼）；
-* 如何实现类似 MCP（Model Context Protocol） 的上下文管理；
-* 如何用 RabbitMQ + 线程池 做异步入库和任务调度；
-* 如何接入 语音识别（ASR）+ 语音合成（TTS）；
-* 如何集成本地 ONNX 模型推理；
-* 如何设计 多会话隔离与上下文管理；
-* 如何让一个 AI 服务同时支持 云端模型与本地推理 模式。
+# 编译项目（-j后接CPU核心数，加速编译）
+make -j4
 
-## 更详细内容
+```
 
-本项目专栏和代码依然是只分享在[知识星球](https://programmercarl.com/other/kstar.html)里。
+### 步骤 4：运行项目
 
-详细的 各个文件的讲解：
+```Plain Text
+# 编译完成后，build目录下会生成可执行文件（假设为CppAIService）
+./CppAIService
 
-![](https://file1.kamacoder.com/i/web/2025-10-15_16-50-14.jpg)
+# 常见启动参数（可选，根据项目设计）
+# ./CppAIService --port 8080 --model_path ./models/ai_model.onnx
 
-流程讲解：
+```
 
-![](https://file1.kamacoder.com/i/web/2025-10-15_16-51-10.jpg)
+### 步骤 5：验证运行
 
+服务启动后，通过 curl 测试 HTTP 接口：
 
-AI开发的各种细节
+```Plain Text
+# 示例：调用AI推理接口
+curl -X POST http://localhost:8080/ai/infer -d '{"input_data": "test"}' -H "Content-Type: application/json"
 
-![](https://file1.kamacoder.com/i/web/2025-10-15_17-21-26.jpg)
+```
 
-项目难点强调：
+若返回预期 JSON 响应（如推理结果、成功状态码），则项目运行正常。
 
-![](https://file1.kamacoder.com/i/web/2025-10-15_17-22-38.jpg)
+## 六、常见问题与注意事项
 
+- **编译报错：找不到头文件 / 库**：检查 CMakeLists\.txt 中 include\_directories/link\_directories 路径是否正确，确认第三方库已安装且路径匹配。
 
-简历写法，做完项目可以直接写到简历上。
+- **运行时端口被占用**：修改项目启动参数（如 \-\-port 8081），或关闭占用端口的进程。
 
-![](https://file1.kamacoder.com/i/web/2025-10-15_17-24-19.jpg)
+- **AI 模型推理报错**：确认模型文件路径正确、模型格式与推理框架兼容（如 ONNX 模型需匹配 ONNX Runtime 版本）。
 
-那这个项目面试，都会有哪些问题，如何回答，都列出来了
+- **跨平台编译（Windows）**：使用 CMake\-GUI 生成 Visual Studio 工程，打开工程后编译；需提前安装对应依赖的 Windows 版本（如 Boost、OpenCV 的 Windows 包）。
 
-![](https://file1.kamacoder.com/i/web/2025-10-15_17-25-44.jpg)
+## 七、扩展说明
 
-## 答疑
+- 若需新增 AI 能力：在 AIApps/ 下新增子模块（如 TextGenerate/），实现业务逻辑后，在 HttpServer/Route\.cpp 中新增接口路由即可；
 
-本项目在[知识星球](https://programmercarl.com/other/kstar.html)里为 文字专栏形式，大家不用担心，看不懂，星球里每个项目有专属答疑群，任何问题都可以在群里问，都会得到解答：
+- 若需优化性能：可基于 HttpServer 的事件驱动模型调整并发配置，或通过 TensorRT 对 AI 模型进行量化 / 加速；
 
-![](https://file1.kamacoder.com/i/web/2025-09-26_11-30-13.jpg)
+- 项目部署：编译生成的可执行文件可直接部署到服务器，建议配合 systemd（Linux）/ 服务（Windows）实现开机自启、进程守护。
 
-
-## 获取本项目专栏
-
-**本文档仅为星球内部专享，大家可以加入[知识星球](https://programmercarl.com/other/kstar.html)里获取，在星球置顶一**
 
